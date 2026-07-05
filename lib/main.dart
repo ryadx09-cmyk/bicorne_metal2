@@ -7,115 +7,290 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Bicorne Metal',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.blueGrey,
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class Job {
+  String clientName;
+  String jobType;
+  double materialCost;
+  double workerCost;
+  double amountDue;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  Job({
+    required this.clientName,
+    required this.jobType,
+    this.materialCost = 0,
+    this.workerCost = 0,
+    this.amountDue = 0,
+  });
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  double get profit => amountDue - materialCost - workerCost;
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
-  void _incrementCounter() {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final List<Job> jobs = [];
+
+  double get totalProfit =>
+      jobs.fold(0, (sum, job) => sum + job.profit);
+
+  void _addJob(Job job) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      jobs.add(job);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Bicorne Metal'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            color: Colors.blueGrey.shade50,
+            child: Column(
+              children: [
+                const Text(
+                  'الربح الصافي الكلي',
+                  style: TextStyle(fontSize: 16),
+                ),
+                Text(
+                  '${totalProfit.toStringAsFixed(2)} د.ج',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: totalProfit >= 0 ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: jobs.isEmpty
+                ? const Center(child: Text('ما كاينة حتى شغلة، زيد واحدة'))
+                : ListView.builder(
+                    itemCount: jobs.length,
+                    itemBuilder: (context, index) {
+                      final job = jobs[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        child: ListTile(
+                          title: Text(job.clientName),
+                          subtitle: Text(job.jobType),
+                          trailing: Text(
+                            '${job.profit.toStringAsFixed(2)} د.ج',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: job.profit >= 0
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    JobDetailScreen(job: job),
+                              ),
+                            );
+                            setState(() {});
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final newJob = await Navigator.push<Job>(
+            context,
+            MaterialPageRoute(builder: (context) => const AddJobScreen()),
+          );
+          if (newJob != null) {
+            _addJob(newJob);
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class AddJobScreen extends StatefulWidget {
+  const AddJobScreen({super.key});
+
+  @override
+  State<AddJobScreen> createState() => _AddJobScreenState();
+}
+
+class _AddJobScreenState extends State<AddJobScreen> {
+  final _nameController = TextEditingController();
+  final _typeController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('شغلة جديدة')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'اسم الكليان',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _typeController,
+              decoration: const InputDecoration(
+                labelText: 'نوع الشغل (حدادة / ستارة حديدية)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                if (_nameController.text.isEmpty) return;
+                Navigator.pop(
+                  context,
+                  Job(
+                    clientName: _nameController.text,
+                    jobType: _typeController.text,
+                  ),
+                );
+              },
+              child: const Text('إضافة'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class JobDetailScreen extends StatefulWidget {
+  final Job job;
+  const JobDetailScreen({super.key, required this.job});
+
+  @override
+  State<JobDetailScreen> createState() => _JobDetailScreenState();
+}
+
+class _JobDetailScreenState extends State<JobDetailScreen> {
+  late TextEditingController _materialController;
+  late TextEditingController _workerController;
+  late TextEditingController _dueController;
+
+  @override
+  void initState() {
+    super.initState();
+    _materialController =
+        TextEditingController(text: widget.job.materialCost.toString());
+    _workerController =
+        TextEditingController(text: widget.job.workerCost.toString());
+    _dueController =
+        TextEditingController(text: widget.job.amountDue.toString());
+  }
+
+  void _save() {
+    setState(() {
+      widget.job.materialCost =
+          double.tryParse(_materialController.text) ?? 0;
+      widget.job.workerCost = double.tryParse(_workerController.text) ?? 0;
+      widget.job.amountDue = double.tryParse(_dueController.text) ?? 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.job.clientName)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _materialController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'مصاريف المواد (حديد...)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _save(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _workerController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'مصاريف العمال',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _save(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _dueController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'المستحقات (المبلغ الكلي من الكليان)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => _save(),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  const Text('الربح الصافي', style: TextStyle(fontSize: 16)),
+                  Text(
+                    '${widget.job.profit.toStringAsFixed(2)} د.ج',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: widget.job.profit >= 0
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
